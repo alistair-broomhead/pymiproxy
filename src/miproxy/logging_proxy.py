@@ -4,21 +4,61 @@ from httplib import HTTPResponse
 from sys import argv
 from proxy import ProxyHandler
 
-from handlers import SQLiteHandler, StdOutInfoHandler
+from handlers import SQLiteHandler, StdOutHandler
 from logging import Logger
+from filters import MoshiFilter
 
-SQLITE_HANDLER = SQLiteHandler(db="http_proxy.sqlite")
-STDOUT_HANDLER = StdOutInfoHandler()
 LOGGER = Logger(__name__)
-LOGGER.addHandler(STDOUT_HANDLER)
-LOGGER.addHandler(SQLITE_HANDLER)
+LOGGER.addFilter(MoshiFilter())
+LOGGER.addHandler(StdOutHandler())
+LOGGER.addHandler(SQLiteHandler(db="http_proxy.sqlite"))
 
 
 class LoggingProxyHandler(ProxyHandler):
 
-    def do_COMMAND(self):
-        conn_data = {'hostname': self.hostname, 'port': self.port}
+    def _get_request(self):
+        req_d = {'command': self.command,
+                 'path': self.path,
+                 'req_version': self.request_version,
+                 'headers': self.headers}
+        # Build request including headers
+        req = '%(command)s %(path)s %(req_version)s\r\n%(headers)s\r\n' % req_d
+        # Append message body if present to the request
+        if 'Content-Length' in self.headers:
+            req += self.rfile.read(int(self.headers['Content-Length']))
+        # Send it down the pipe!
+        self._proxy_sock.sendall(self.mitm_request(req))
+        print req
+        # Time to relay the message across
+        return req_d
 
+    def _get_response(self):
+
+        # Parse response
+        h = HTTPResponse(self._proxy_sock)
+        h.begin()
+        res_d = {'status': h.status,
+                 'reason': h.reason,
+                 'req_version': self.request_version,
+                 'msg': h.msg,
+                 'trans_enc': (h.msg['Transfer-Encoding']
+                               if 'Transfer-Encoding' in h.msg
+                               else '[NO-ENCODING]')}
+        # Get rid of the pesky header
+        del h.msg['Transfer-Encoding']
+
+        res = '%(req_version)s %(status)s %(reason)s\r\n%(msg)s\r\n' % res_d
+        res_d['data'] = h.read()
+        res += res_d['data']
+        # Let's close off the remote end
+        h.close()
+        self._proxy_sock.close()
+        # Relay the message
+        self.request.sendall(self.mitm_response(res))
+        print res
+        return res_d
+
+    def do_COMMAND(self):
         # Is this an SSL tunnel?
         if not self.is_connect:
             try:
@@ -29,52 +69,20 @@ class LoggingProxyHandler(ProxyHandler):
                 return
             # Extract path
 
-        req_d = {'command': self.command,
-                 'path': self.path,
-                 'req_version': self.request_version,
-                 'headers': self.headers}
+        conn_data = {'hostname': self.hostname, 'port': self.port}
+        req_d = self._get_request()
+        res_d = self._get_response()
 
-        # Build request including headers
-        req = '%(command)s %(path)s %(req_version)s\r\n%(headers)s\r\n' % req_d
-
-        # Append message body if present to the request
-        if 'Content-Length' in self.headers:
-            req += self.rfile.read(int(self.headers['Content-Length']))
-
-        # Send it down the pipe!
-        self._proxy_sock.sendall(self.mitm_request(req))
-
-        # Parse response
-        h = HTTPResponse(self._proxy_sock)
-        h.begin()
-        res_d = {'status': h.status,
-                 'reason': h.reason,
-                 'req_version': req_d['req_version'],
-                 'msg': h.msg,
-                 'trans_enc': (h.msg['Transfer-Encoding']
-                               if 'Transfer-Encoding' in h.msg
-                               else '[NO-ENCODING]')}
-
-        # Get rid of the pesky header
-        del h.msg['Transfer-Encoding']
-
-        # Time to relay the message across
-        res = '%(req_version)s %(status)s %(reason)s\r\n%(msg)s\r\n' % res_d
-        res_d['data'] = h.read()
-        res += res_d['data']
-
-        # Let's close off the remote end
-        h.close()
-        self._proxy_sock.close()
-
-        # Relay the message
-        self.request.sendall(self.mitm_response(res))
-
+        # Do our logging
+        req_d['headers'] = req_d['headers'].__dict__
+        del req_d['headers']['fp']
         req_d.update(conn_data)
-        LOGGER.info('REQUEST: %s', req_d)
-
+        res_d['msg'] = res_d['msg'].__dict__
+        del res_d['msg']['fp']
         res_d.update(conn_data)
-        LOGGER.info('RESPONSE: %s', res_d)
+
+        transferred = {"request": req_d, "response": res_d}
+        LOGGER.info("REQUEST: %(request)s\nRESPONSE: %(response)s", transferred)
 
 
 if __name__ == '__main__':

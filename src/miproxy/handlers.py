@@ -4,7 +4,7 @@ SQLiteHandler Taken mainly from
 Some minor reformatting, mostly whitespace, plus change from python string
 parameters to sql parameters
 
-StdOutInfoHandler just prints log messages that are INFO or more
+StdOutHandler just prints log messages to stdout
 """
 import sqlite3
 import logging
@@ -56,8 +56,7 @@ class SQLiteHandler(logging.Handler):
                         Process,
                         Thread,
                         ThreadName
-                   )
-                   VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
+                   ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
                    """
 
     def __init__(self, db='app.db'):
@@ -103,11 +102,9 @@ class SQLiteHandler(logging.Handler):
         conn.commit()
 
 
-class StdOutInfoHandler(logging.Handler):
+class StdOutHandler(logging.Handler):
     """
     Logging to stdout.
     """
-
     def emit(self, record):
-        if record.levelno >= 20:
-            print record.msg % record.args
+        print record.msg % record.args
