@@ -82,63 +82,59 @@ another.
 
 The following is a simple code example of how to run the proxy with plugins:
 
-```python
-from python_logging_proxy.proxy import RequestInterceptorPlugin, ResponseInterceptorPlugin, AsyncMitmProxy
+    from python_logging_proxy.proxy import RequestInterceptorPlugin, ResponseInterceptorPlugin, AsyncMitmProxy
 
-class DebugInterceptor(RequestInterceptorPlugin, ResponseInterceptorPlugin):
+    class DebugInterceptor(RequestInterceptorPlugin, ResponseInterceptorPlugin):
 
-        def do_request(self, data):
-            print '>> %s' % repr(data[:100])
-            return data
+            def do_request(self, data):
+                print '>> %s' % repr(data[:100])
+                return data
 
-        def do_response(self, data):
-            print '<< %s' % repr(data[:100])
-            return data
+            def do_response(self, data):
+                print '<< %s' % repr(data[:100])
+                return data
 
 
-if __name__ == '__main__':
-    proxy = None
-    if not argv[1:]:
-        proxy = AsyncMitmProxy()
-    else:
-        proxy = AsyncMitmProxy(ca_file=argv[1])
-    proxy.register_interceptor(DebugInterceptor)
-    try:
-        proxy.serve_forever()
-    except KeyboardInterrupt:
-        proxy.server_close()
-```
+    if __name__ == '__main__':
+        proxy = None
+        if not argv[1:]:
+            proxy = AsyncMitmProxy()
+        else:
+            proxy = AsyncMitmProxy(ca_file=argv[1])
+        proxy.register_interceptor(DebugInterceptor)
+        try:
+            proxy.serve_forever()
+        except KeyboardInterrupt:
+            proxy.server_close()
 
 ###Method Overloading
 
 The alternate approach to extending the proxy functionality is to subclass the ProxyHandler class and overload the
 ```mitm_request``` and ```mitm_response``` methods. The following is a quick example:
 
-```python
-from python_logging_proxy.proxy import AsyncMitmProxy
+    from python_logging_proxy.proxy import AsyncMitmProxy
 
-class MitmProxyHandler(ProxyHandler):
+    class MitmProxyHandler(ProxyHandler):
 
-    def mitm_request(self, data):
-        print '>> %s' % repr(data[:100])
-        return data
+        def mitm_request(self, data):
+            print '>> %s' % repr(data[:100])
+            return data
 
-    def mitm_response(self, data):
-        print '<< %s' % repr(data[:100])
-        return data
+        def mitm_response(self, data):
+            print '<< %s' % repr(data[:100])
+            return data
 
 
-if __name__ == '__main__':
-    proxy = None
-    if not argv[1:]:
-        proxy = AsyncMitmProxy(RequestHandlerClass=MitmProxyHandler)
-    else:
-        proxy = AsyncMitmProxy(RequestHandlerClass=MitmProxyHandler, ca_file=argv[1])
-    try:
-        proxy.serve_forever()
-    except KeyboardInterrupt:
-        proxy.server_close()
-```
+    if __name__ == '__main__':
+        proxy = None
+        if not argv[1:]:
+            proxy = AsyncMitmProxy(RequestHandlerClass=MitmProxyHandler)
+        else:
+            proxy = AsyncMitmProxy(RequestHandlerClass=MitmProxyHandler, ca_file=argv[1])
+        try:
+            proxy.serve_forever()
+        except KeyboardInterrupt:
+            proxy.server_close()
 
 Note: In both cases, the methods that process the data need to return the data back to the proxy handler. Otherwise,
 you'll get an exception.
