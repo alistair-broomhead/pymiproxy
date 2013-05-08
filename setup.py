@@ -1,18 +1,19 @@
 from setuptools import setup, find_packages
 from os import path
 
+
 def read(fname):
     return open(path.join(path.dirname(__file__), fname)).read()
 
 setup(
-    name='pymiproxy',
-    author='Nadeem Douba',
+    name='python-logging-proxy',
+    author='Alistair Broomhead',
     version='1.0',
-    author_email='ndouba@gmail.com',
-    description='Micro Interceptor Proxy - a simple MITM HTTP/S proxy',
+    author_email='alistair.broomhead@gmail.com',
+    description='Micro Interceptor Proxy - a simple MITM HTTP/S proxy with logging',
     license='GPL',
-    url='https://github.com/allfro/pymiproxy',
-    download_url='https://github.com/allfro/pymiproxy/zipball/master',
+    url='https://github.com/alistair-broomhead/python-logging-proxy',
+    download_url='https://github.com/alistair-broomhead/python-logging-proxy/zipball/master',
     long_description=read('README.md'),
     packages=find_packages('src'),
     package_dir={ '' : 'src' },

@@ -1,6 +1,6 @@
-#pymiproxy - Python Micro Interceptor Proxy
+#python-logging-proxy - Python Micro Interceptor Proxy with logging
 
-A small and sweet man-in-the-middle proxy capable of doing HTTP and HTTP over SSL.
+A small and sweet man-in-the-middle proxy capable of doing HTTP and HTTP over SSL, forked and extended from https://github.com/allfro/pymiproxy.
 
 
 ##Introduction
@@ -9,7 +9,7 @@ pymiproxy is a small, lightweight, man-in-the-middle proxy capable of performing
 proxy provides a built-in certificate authority that is capable of generating certificates for SSL-based destinations.
 Pymiproxy is also extensible and provides two methods for extending the proxy: method overloading, and a pluggable
 interface. It is ideal for situations where you're in dire need of a cool proxy to tamper with out- and/or in-bound HTTP
-data.
+data. python-logging-proxy is an addition on top of this which gtives logging to a sqlite database, which can then be used as you like.
 
 ##Installation Requirements
 
@@ -32,14 +32,22 @@ The module offers a few examples in the code. In brief, pymiproxy can be run rig
 at the the command-prompt:
 
 ```bash
-$ python -m miproxy.proxy
+$ python -m python_logging_proxy.proxy
 ```
 
 This will invoke pymiproxy with the ```DebugInterceptor``` plugin which simply outputs the first 100 bytes of each request
 and response. The proxy runs on port 8080 and listens on all addresses. Go ahead and give it a try.
 
+To start python-logging-proxy run:
 
-##Extending or Implementing pymiproxy
+```bash
+$ python -m python_logging_proxy.logging_proxy
+```
+
+This will log to the command line and also to a sqlite database
+
+
+##Extending or Implementing python_logging_proxy
 
 There are two ways of extending the proxy:
 
@@ -58,7 +66,7 @@ There are currently two types of interceptor plugins:
 - ```RequestInterceptorPlugins```: executed prior to sending the request to the remote server; and
 - ```ResponseInterceptorPlugins```: executed prior to sending the response back to the client.
 
-The following flow is taken by pymiproxy in this mode:
+The following flow is taken by python-logging-proxy in this mode:
 
 1. Client request received
 2. Client request parsed
@@ -75,7 +83,7 @@ another.
 The following is a simple code example of how to run the proxy with plugins:
 
 ```python
-from miproxy.proxy import RequestInterceptorPlugin, ResponseInterceptorPlugin, AsyncMitmProxy
+from python_logging_proxy.proxy import RequestInterceptorPlugin, ResponseInterceptorPlugin, AsyncMitmProxy
 
 class DebugInterceptor(RequestInterceptorPlugin, ResponseInterceptorPlugin):
 
@@ -107,7 +115,7 @@ The alternate approach to extending the proxy functionality is to subclass the P
 ```mitm_request``` and ```mitm_response``` methods. The following is a quick example:
 
 ```python
-from miproxy.proxy import AsyncMitmProxy
+from python_logging_proxy.proxy import AsyncMitmProxy
 
 class MitmProxyHandler(ProxyHandler):
 
@@ -138,5 +146,9 @@ you'll get an exception.
 ##Kudos
 
 Thanks to the great documentation at python.org, GnuCitizen's PDP for the ideas, the pyOpenSSL group for making a great
-OpenSSL API.
+OpenSSL API, and last but not least Nadeem Douba for pymiproxy, which this extends.
+
+##Contributing
+
+For anything in proxy.py please contact the maintainer of https://github.com/allfro/pymiproxy about pulling your changes, and let me know to pull those from him. For changes to any other modules, please contact me directly.
 

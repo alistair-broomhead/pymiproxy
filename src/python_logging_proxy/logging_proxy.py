@@ -1,20 +1,14 @@
 #!/usr/bin/env python
 from httplib import HTTPResponse
-
 from sys import argv
-from proxy import ProxyHandler
-
-from handlers import SQLiteHandler, StdOutHandler
 from logging import Logger
-from filters import MoshiFilter
 
-LOGGER = Logger(__name__)
-LOGGER.addFilter(MoshiFilter())
-LOGGER.addHandler(StdOutHandler())
-LOGGER.addHandler(SQLiteHandler(db="http_proxy.sqlite"))
+from python_logging_proxy.proxy import ProxyHandler
+from python_logging_proxy.handlers import SQLiteHandler, StdOutHandler
 
 
 class LoggingProxyHandler(ProxyHandler):
+    logger = Logger(__name__)
 
     def _get_request(self):
         req_d = {'command': self.command,
@@ -82,13 +76,16 @@ class LoggingProxyHandler(ProxyHandler):
         res_d.update(conn_data)
 
         transferred = {"request": req_d, "response": res_d}
-        LOGGER.info("REQUEST: %(request)s\nRESPONSE: %(response)s", transferred)
+        self.logger.info("REQUEST: %(request)s\nRESPONSE: %(response)s",
+                         transferred)
+
+LoggingProxyHandler.logger.addHandler(StdOutHandler())
+LoggingProxyHandler.logger.addHandler(SQLiteHandler(db="http_proxy.sqlite"))
 
 
 if __name__ == '__main__':
-    from proxy import AsyncMitmProxy
+    from python_logging_proxy.proxy import AsyncMitmProxy
     proxy = None
-    RequestHandlerClass = LoggingProxyHandler
     if not argv[1:]:
         proxy = AsyncMitmProxy(RequestHandlerClass=LoggingProxyHandler)
     else:
