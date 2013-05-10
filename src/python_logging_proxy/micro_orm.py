@@ -26,6 +26,7 @@ class SQLiteRecord(object):
                    )"""
 
     db = SQLITE_FILENAME
+    seen_entries = set()
 
     @classmethod
     def init_table(cls, db=None):
@@ -38,7 +39,29 @@ class SQLiteRecord(object):
             curs = conn.cursor()
             curs.execute("SELECT * FROM log WHERE Created=?", created)
             data = curs.fetchone()
+        cls.seen_entries.add(data[0])
         return cls(*data)
+
+    @classmethod
+    def get_all(cls, db=None):
+        with sqlite3.connect(db if db is not None else cls.db) as conn:
+            curs = conn.cursor()
+            curs.execute("SELECT * FROM log")
+            while curs:
+                data = curs.fetchone()
+                cls.seen_entries.add(data[0])
+                yield cls(*data)
+
+    @classmethod
+    def get_unseen(cls, db=None):
+        with sqlite3.connect(db if db is not None else cls.db) as conn:
+            curs = conn.cursor()
+            curs.execute("SELECT * FROM log")
+            while curs:
+                data = curs.fetchone()
+                if data[0] not in cls.seen_entries:
+                    cls.seen_entries.add(data[0])
+                    yield cls(*data)
 
     insertion_sql = """INSERT INTO log(
                         Created,
