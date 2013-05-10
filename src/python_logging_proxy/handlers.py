@@ -6,14 +6,8 @@ parameters to sql parameters
 
 StdOutHandler just prints log messages to stdout
 """
-import sqlite3
 import logging
-import time
-from os import path
-
-
-SQLITE_FILENAME = path.join(path.expanduser('~'),
-                            '.python-logging-proxy.sqlite')
+from python_logging_proxy.micro_orm import SQLiteRecord, SQLITE_FILENAME
 
 
 class SQLiteHandler(logging.Handler):
@@ -31,80 +25,37 @@ class SQLiteHandler(logging.Handler):
     because SQLite doesn't allow access to objects across threads.
     """
 
-    initial_sql = """CREATE TABLE IF NOT EXISTS log(
-                        Created text,
-                        Name text,
-                        LogLevel int,
-                        LogLevelName text,
-                        Message text,
-                        Args text,
-                        Module text,
-                        FuncName text,
-                        LineNo int,
-                        Exception text,
-                        Process int,
-                        Thread text,
-                        ThreadName text
-                   )"""
-
-    insertion_sql = """INSERT INTO log(
-                        Created,
-                        Name,
-                        LogLevel,
-                        LogLevelName,
-                        Message,
-                        Args,
-                        Module,
-                        FuncName,
-                        LineNo,
-                        Exception,
-                        Process,
-                        Thread,
-                        ThreadName
-                   ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
-                   """
-
     def __init__(self, db=SQLITE_FILENAME):
 
         logging.Handler.__init__(self)
         self.db = db
         # Create table if needed:
-        conn = sqlite3.connect(self.db)
-        conn.execute(SQLiteHandler.initial_sql)
-        conn.commit()
-
-    def formatDBTime(self, record):
-        record.dbtime = time.strftime("%Y-%m-%d %H:%M:%S",
-                                      time.localtime(record.created))
+        SQLiteRecord.init_table(db)
 
     def emit(self, record):
-
         # Use default formatting:
         self.format(record)
-        # Set the database time up:
-        self.formatDBTime(record)
         if record.exc_info:
             record.exc_text = logging._defaultFormatter\
                                      .formatException(record.exc_info)
         else:
             record.exc_text = ""
         # Insert log record:
-        conn = sqlite3.connect(self.db)
-        params = (record.dbtime,
-                  record.name,
-                  record.levelno,
-                  record.levelname,
-                  record.msg,
-                  repr(record.args),
-                  record.module,
-                  record.funcName,
-                  record.lineno,
-                  record.exc_text,
-                  record.process,
-                  record.thread,
-                  record.threadName)
-        conn.execute(self.insertion_sql, params)
-        conn.commit()
+        SQLiteRecord(record.created,
+                     record.name,
+                     record.args['request']['hostname'],
+                     record.args['request']['port'],
+                     record.levelno,
+                     record.levelname,
+                     record.msg,
+                     record.args,
+                     record.module,
+                     record.funcName,
+                     record.lineno,
+                     record.exc_text,
+                     record.process,
+                     record.thread,
+                     record.threadName).insert(self.db)
 
 
 class StdOutHandler(logging.Handler):
