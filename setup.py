@@ -7,8 +7,10 @@ def read(fname):
 
 setup(
     name='python-logging-proxy',
+    include_package_data = True,
+    package_data = {'':['*.md']},
     author='Alistair Broomhead',
-    version='1.0',
+    version='1.0.1',
     author_email='alistair.broomhead@gmail.com',
     description='Micro Interceptor Proxy - a simple MITM HTTP/S proxy with logging',
     license='GPL',
