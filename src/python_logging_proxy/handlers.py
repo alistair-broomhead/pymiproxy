@@ -9,6 +9,11 @@ StdOutHandler just prints log messages to stdout
 import sqlite3
 import logging
 import time
+from os import path
+
+
+SQLITE_FILENAME = path.join(path.expanduser('~'),
+                            '.python-logging-proxy.sqlite')
 
 
 class SQLiteHandler(logging.Handler):
@@ -59,7 +64,7 @@ class SQLiteHandler(logging.Handler):
                    ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? );
                    """
 
-    def __init__(self, db='app.db'):
+    def __init__(self, db=SQLITE_FILENAME):
 
         logging.Handler.__init__(self)
         self.db = db

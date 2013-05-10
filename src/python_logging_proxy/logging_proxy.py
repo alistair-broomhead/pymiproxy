@@ -4,7 +4,9 @@ from sys import argv
 from logging import Logger
 
 from python_logging_proxy.proxy import ProxyHandler
-from python_logging_proxy.handlers import SQLiteHandler, StdOutHandler
+from python_logging_proxy.handlers import (SQLiteHandler,
+                                           StdOutHandler,
+                                           SQLITE_FILENAME)
 
 
 class LoggingProxyHandler(ProxyHandler):
@@ -80,7 +82,7 @@ class LoggingProxyHandler(ProxyHandler):
                          transferred)
 
 LoggingProxyHandler.logger.addHandler(StdOutHandler())
-LoggingProxyHandler.logger.addHandler(SQLiteHandler(db="http_proxy.sqlite"))
+LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLITE_FILENAME))
 
 
 if __name__ == '__main__':
