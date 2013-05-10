@@ -47,8 +47,10 @@ class SQLiteRecord(object):
         with sqlite3.connect(db if db is not None else cls.db) as conn:
             curs = conn.cursor()
             curs.execute("SELECT * FROM log")
-            while curs:
+            while True:
                 data = curs.fetchone()
+                if data is None:
+                    break
                 cls.seen_entries.add(data[0])
                 yield cls(*data)
 
@@ -57,8 +59,10 @@ class SQLiteRecord(object):
         with sqlite3.connect(db if db is not None else cls.db) as conn:
             curs = conn.cursor()
             curs.execute("SELECT * FROM log")
-            while curs:
+            while True:
                 data = curs.fetchone()
+                if data is None:
+                    break
                 if data[0] not in cls.seen_entries:
                     cls.seen_entries.add(data[0])
                     yield cls(*data)
@@ -126,11 +130,11 @@ class SQLiteRecord(object):
         self.port = port
         self.log_level = log_level
         self.log_level_name = log_level_name
-        if isinstance(message, basestring):
-            self.message = eval(message)
+        self.message = message
+        if isinstance(args, basestring):
+            self.args = eval(args)
         else:
-            self.message = message
-        self.args = args
+            self.args = args
         self.module = module
         self.func_name = func_name
         self.line_no = line_no
