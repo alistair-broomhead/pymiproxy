@@ -10,16 +10,14 @@ setup(
     name='python-logging-proxy',
     package_data={'': ['*.md']},
     author='Alistair Broomhead',
-    version='1.0.4',
+    version='1.0.5',
     author_email='alistair.broomhead@gmail.com',
-    description='Micro Interceptor Proxy - a simple MITM HTTP/S proxy with logging',
-    license='GPL',
+    description='Logging Proxy adapting pymiproxy',
+    license='MIT',
     url='https://github.com/alistair-broomhead/python-logging-proxy',
     download_url='https://github.com/alistair-broomhead/python-logging-proxy/zipball/master',
     long_description=read('README.md'),
     packages=find_packages('src'),
     package_dir={'': 'src'},
-    install_requires=[
-        'pyopenssl'
-    ]
+    install_requires=['pyopenssl', 'pymiproxy']
 )

@@ -13,3 +13,8 @@ __status__ = 'Development'
 __all__ = [
     'proxy', 'logging_proxy', 'handlers'
 ]
+
+if __name__ == '__main__':
+    from sys import argv
+    from logging_proxy import main
+    main(None if not argv[1:] else argv[1])

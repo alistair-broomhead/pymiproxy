@@ -3,7 +3,7 @@ from httplib import HTTPResponse
 from sys import argv
 from logging import Logger
 
-from python_logging_proxy.proxy import ProxyHandler
+from miproxy.proxy import ProxyHandler
 from python_logging_proxy.handlers import (SQLiteHandler,
                                            StdOutHandler,
                                            SQLITE_FILENAME)
@@ -86,7 +86,7 @@ LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLITE_FILENAME))
 
 
 def main(ca_file=None):
-    from python_logging_proxy.proxy import AsyncMitmProxy
+    from miproxy.proxy import AsyncMitmProxy
     if ca_file is None:
         proxy = AsyncMitmProxy(RequestHandlerClass=LoggingProxyHandler)
     else:
@@ -101,5 +101,4 @@ def main(ca_file=None):
 
 
 if __name__ == '__main__':
-    ca_file = None if not argv[1:] else argv[1]
-    main(ca_file)
+    main(None if not argv[1:] else argv[1])
