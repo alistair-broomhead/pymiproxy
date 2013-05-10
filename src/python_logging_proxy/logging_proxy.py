@@ -85,15 +85,21 @@ LoggingProxyHandler.logger.addHandler(StdOutHandler())
 LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLITE_FILENAME))
 
 
-if __name__ == '__main__':
+def main(ca_file=None):
     from python_logging_proxy.proxy import AsyncMitmProxy
-    proxy = None
-    if not argv[1:]:
+    if ca_file is None:
         proxy = AsyncMitmProxy(RequestHandlerClass=LoggingProxyHandler)
     else:
         proxy = AsyncMitmProxy(RequestHandlerClass=LoggingProxyHandler,
-                               ca_file=argv[1])
+                               ca_file=ca_file)
     try:
         proxy.serve_forever()
     except KeyboardInterrupt:
+        pass
+    finally:
         proxy.server_close()
+
+
+if __name__ == '__main__':
+    ca_file = None if not argv[1:] else argv[1]
+    main(ca_file)
