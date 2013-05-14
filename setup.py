@@ -1,6 +1,5 @@
 from setuptools import setup, find_packages
 from os import path
-from time import time
 
 
 def read(fname):
@@ -11,7 +10,7 @@ setup(
     name='python-logging-proxy',
     package_data={'': ['*.md']},
     author='Alistair Broomhead',
-    version='1.0.7.%r' % time(),
+    version='1.0.7',
     author_email='alistair.broomhead@gmail.com',
     description='Logging Proxy adapting pymiproxy',
     license='MIT',

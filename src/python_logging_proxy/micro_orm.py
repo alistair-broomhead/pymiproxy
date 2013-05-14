@@ -11,6 +11,17 @@ __author__ = 'Alistair Broomhead'
 
 class SQLiteRecord(object):
 
+    def __repr__(self):
+        return "<SQLiteRecord for " \
+               "%(path)s at " \
+               "%(created)r =: " \
+               "%(response)r at " \
+               "%(hex_id)s>" %\
+               {'hex_id': hex(id(self)),
+                'path': self.args['request']['path'],
+                'created': self.created,
+                'response': self.args['response']['data']}
+
     def __init__(self,
                  created, name, host_name, port,
                  log_level, log_level_name, message,
@@ -40,7 +51,6 @@ class SQLiteRecord(object):
 
     # noinspection PyPropertyDefinition
     @classmethod
-    @property
     def last_seen(cls, recheck=False, db=None):
         if recheck:
             for _ in cls.get_unseen(db):
@@ -86,7 +96,7 @@ class SQLiteRecord(object):
     def get_entry(cls, created, db=None):
         with cls._conn_db(db) as conn:
             curs = conn.cursor()
-            curs.execute("SELECT * FROM log WHERE Created=?", created)
+            curs.execute("SELECT * FROM log WHERE Created=?", (created,))
             data = curs.fetchone()
         yield cls._see(data)
 
@@ -100,15 +110,12 @@ class SQLiteRecord(object):
 
     @classmethod
     def get_unseen(cls, db=None):
+        created = cls.last_seen().created if cls.seen_entries else 0
         with cls._conn_db(db) as conn:
             curs = conn.cursor()
-            curs.execute("SELECT * FROM log WHERE Created>?",
-                         cls.last_seen.created)
-            while True:
-                data = curs.fetchone()
-                if data is None:
-                    break
-                yield cls._see(data)
+            curs.execute("SELECT * FROM log WHERE Created>?", (created,))
+            for row in curs:
+                yield cls._see(row)
 
     @property
     def as_row(self):
