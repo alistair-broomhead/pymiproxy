@@ -21,10 +21,11 @@ class LoggingProxyHandler(ProxyHandler):
         req = '%(command)s %(path)s %(req_version)s\r\n%(headers)s\r\n' % req_d
         # Append message body if present to the request
         if 'Content-Length' in self.headers:
-            req += self.rfile.read(int(self.headers['Content-Length']))
+            req_d['data'] = self.rfile.read(int(self.headers['Content-Length']))
+            req += req_d['data']
         # Send it down the pipe!
         self._proxy_sock.sendall(self.mitm_request(req))
-        print req
+        # print req  # Should not be needed
         # Time to relay the message across
         return req_d
 
