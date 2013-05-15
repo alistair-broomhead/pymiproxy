@@ -2,10 +2,9 @@
 
 __author__ = 'Alistair Broomhead'
 __copyright__ = 'Copyright 2012, Mind Candy Ltd'
-__credits__ = ['Nadeem Douba', 'Alistair Broomhead']
+__credits__ = ['Alistair Broomhead', 'Nadeem Douba']
 
 __license__ = 'GPL'
-__version__ = '0.1'
 __maintainer__ = 'Alistair Broomhead'
 __email__ = 'alistair.broomhead@gmail.com'
 __status__ = 'Development'
