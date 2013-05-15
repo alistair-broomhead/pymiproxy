@@ -12,15 +12,17 @@ __author__ = 'Alistair Broomhead'
 class SQLiteRecord(object):
 
     def __repr__(self):
+        path = self.args['request']['path']
+        data = self.args['response']['data']
         return "<SQLiteRecord for " \
                "%(path)s at " \
                "%(created)r =: " \
                "%(response)r at " \
                "%(hex_id)s>" %\
                {'hex_id': hex(id(self)),
-                'path': self.args['request']['path'],
+                'path': path.split('?')[0],
                 'created': self.created,
-                'response': self.args['response']['data']}
+                'response': data}
 
     def __init__(self,
                  created, name, host_name, port,
@@ -113,8 +115,8 @@ class SQLiteRecord(object):
         created = cls.last_seen().created if cls.seen_entries else 0
         with cls._conn_db(db) as conn:
             curs = conn.cursor()
-            curs.execute("SELECT * FROM log WHERE Created>?", (created,))
-            for row in curs:
+            for row in curs.execute("SELECT * FROM log WHERE Created>?",
+                                    (created,)):
                 yield cls._see(row)
 
     @property
