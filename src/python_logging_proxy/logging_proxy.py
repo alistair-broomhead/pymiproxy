@@ -2,6 +2,7 @@
 from httplib import HTTPResponse
 from sys import argv
 from logging import Logger
+from time import time
 
 from miproxy.proxy import ProxyHandler
 from python_logging_proxy.handlers import (SQLiteHandler,
@@ -14,6 +15,7 @@ class LoggingProxyHandler(ProxyHandler):
 
     def _get_request(self):
         req_d = {'command': self.command,
+                 'time': time(),
                  'path': self.path,
                  'req_version': self.request_version,
                  'headers': self.headers}
@@ -25,6 +27,7 @@ class LoggingProxyHandler(ProxyHandler):
             req += req_d['data']
         # Send it down the pipe!
         self._proxy_sock.sendall(self.mitm_request(req))
+
         # print req  # Should not be needed
         # Time to relay the message across
         return req_d
@@ -46,6 +49,7 @@ class LoggingProxyHandler(ProxyHandler):
 
         res = '%(req_version)s %(status)s %(reason)s\r\n%(msg)s\r\n' % res_d
         res_d['data'] = h.read()
+        res_d['time'] = time()
         res += res_d['data']
         # Let's close off the remote end
         h.close()
@@ -82,11 +86,11 @@ class LoggingProxyHandler(ProxyHandler):
         self.logger.info("REQUEST: %(request)s\nRESPONSE: %(response)s",
                          transferred)
 
-LoggingProxyHandler.logger.addHandler(StdOutHandler())
 LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLITE_FILENAME))
 
 
 def main(ca_file=None):
+    LoggingProxyHandler.logger.addHandler(StdOutHandler())
     from miproxy.proxy import AsyncMitmProxy
     if ca_file is None:
         proxy = AsyncMitmProxy(RequestHandlerClass=LoggingProxyHandler)
