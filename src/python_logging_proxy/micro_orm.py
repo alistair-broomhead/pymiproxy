@@ -172,8 +172,18 @@ class SQLiteRecord(SQLBase):
                                     (created,)):
                 yield cls._see(row)
 
+    @property
+    def summary(self):
+            req = self.args['request']
+            res = self.args['response']
+            return {'name': req['path'],
+                    'size': len(res['data']),
+                    'start_time': req['time'],
+                    'end_time': res['time'],
+                    'time_taken': res['time'] - req['time']}
 
-class Event(SQLBase):
+
+class HttpSession(SQLBase):
     sql_schema = ("CREATE TABLE IF NOT EXISTS events(Start float PRIMARY KEY,"
                   "Name text UNIQUE End float)")
     sql_insert = "INSERT INTO events(Start, Name, End) VALUES ( ?, ?, ? );"
@@ -181,6 +191,9 @@ class Event(SQLBase):
                          'name': identity,
                          'end': identity})
     __names = OrderedDict()
+    start = None
+    end = None
+    name = None
 
     @classmethod
     def _see(cls, data):
@@ -229,8 +242,24 @@ class Event(SQLBase):
                 self.__names[name] = start
         return self.__names
 
+    @property
+    def summary(self):
+        assets = [event.summary for event in self.events]
+        return {'name': self.name,
+                'wall_time': self.end - self.start,
+                'asset_num': len(assets),
+                'assets': assets,
+                'cummulative_time': sum([a['time_taken'] for a in assets]),
+                'cummulative_size': sum([a['size'] for a in assets])}
+
     def __init__(self, start, name, end=None):
-        super(SQLiteRecord, self).__init__(start=start, name=name, end=end)
+        super(HttpSession, self).__init__(start=start, name=name, end=end)
+
+    @property
+    def events(self):
+        if not hasattr(self, '_events'):
+            return self.get_events()
+        return self._events
 
     def get_events(self):
         sql = "SELECT * FROM log WHERE Created>=?"
@@ -239,8 +268,10 @@ class Event(SQLBase):
             times.append(self.end)
             sql += " AND Created<=?"
         times = tuple(times)
-        self.events = events = []
+        events = []
         with q.sqlite_connection() as conn:
             data = conn.cursor().execute(sql, times)
             for event in data:
                 events.append(SQLiteRecord(*event))
+        self._events = tuple(events)
+        return events
