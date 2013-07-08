@@ -20,7 +20,8 @@ class SQLBase(object):
 
     @property
     def as_row(self):
-        return tuple(func(getattr(self, key)) for key, func in self._flds)
+        return tuple(func(getattr(self, key))
+                     for (key, func) in self._flds.items())
 
     def _process_init_kwargs(self, **kwargs):
         for k, v in kwargs.items():
@@ -185,7 +186,7 @@ class SQLiteRecord(SQLBase):
 
 class HttpSession(SQLBase):
     sql_schema = ("CREATE TABLE IF NOT EXISTS events(Start float PRIMARY KEY,"
-                  "Name text UNIQUE End float)")
+                  "Name text UNIQUE, End float)")
     sql_insert = "INSERT INTO events(Start, Name, End) VALUES ( ?, ?, ? );"
     _flds = OrderedDict({'start': identity,
                          'name': identity,
@@ -208,9 +209,9 @@ class HttpSession(SQLBase):
 
     def update_db(self, db=None):
         if self.name in self._names:
-            with cls._conn_db(db) as conn:
+            with self._conn_db(db) as conn:
                 curs = conn.cursor()
-                curs.execute("UPDATE entry SET End=? WHERE Start=?",
+                curs.execute("UPDATE events SET End=? WHERE Start=?",
                              (self.end, self.start))
         else:
             self.insert(db)
@@ -234,9 +235,9 @@ class HttpSession(SQLBase):
                          curs.execute("SELECT * FROM events"))
 
     @property
-    def _names(self):
+    def _names(self, db=None):
         self.__names.clear()
-        with cls._conn_db(db) as conn:
+        with self._conn_db(db) as conn:
             curs = conn.cursor()
             for name, start in curs.execute("SELECT Name, Start from events"):
                 self.__names[name] = start
