@@ -2,69 +2,41 @@ import sqlite3
 from os import path
 from collections import OrderedDict
 from contextlib import contextmanager
+from abc import ABCMeta, abstractproperty, abstractmethod
 
 SQLITE_FILENAME = path.join(path.expanduser('~'),
                             '.python-logging-proxy.sqlite')
 
 __author__ = 'Alistair Broomhead'
 
+identity = lambda x: x
 
-class SQLiteRecord(object):
+
+class SQLBase(object):
+    db = SQLITE_FILENAME
+    sql_schema = abstractproperty(lambda _: '')
+    sql_insert = abstractproperty(lambda _: '')
+    _flds = abstractproperty(lambda _: {})
+
+    @property
+    def as_row(self):
+        return tuple(func(getattr(self, key)) for key, func in self._flds)
+
+    def _process_init_kwargs(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+
+    def __init__(self, **kwargs):
+        self._process_init_kwargs(**kwargs)
+
+    def _identifying_data(self):
+        return ''
 
     def __repr__(self):
-        path = self.args['request']['path']
-        data = self.args['response']['data']
-        return "<SQLiteRecord for " \
-               "%(path)s at " \
-               "%(created)r =: " \
-               "%(response)r at " \
-               "%(hex_id)s>" %\
-               {'hex_id': hex(id(self)),
-                'path': path.split('?')[0],
-                'created': self.created,
-                'response': data}
-
-    def __init__(self,
-                 created, name, host_name, port,
-                 log_level, log_level_name, message,
-                 args, module, func_name, line_no,
-                 exception, process, thread, threadName):
-        self.created = created
-        self.name = name
-        self.host_name = host_name
-        self.port = port
-        self.log_level = log_level
-        self.log_level_name = log_level_name
-        self.message = message
-        if isinstance(args, basestring):
-            self.args = eval(args)
-        else:
-            self.args = args
-        self.module = module
-        self.func_name = func_name
-        self.line_no = line_no
-        self.exception = exception
-        self.process = process
-        self.thread = thread
-        self.threadName = threadName
-
-    db = SQLITE_FILENAME
-    seen_entries = OrderedDict()
-
-    # noinspection PyPropertyDefinition
-    @classmethod
-    def last_seen(cls, recheck=False, db=None):
-        if recheck:
-            for _ in cls.get_unseen(db):
-                pass
-        key = next(reversed(cls.seen_entries))
-        return cls.seen_entries[key]
-
-    @classmethod
-    def _see(cls, data):
-        if data[0] not in cls.seen_entries:
-            cls.seen_entries[data[0]] = SQLiteRecord(*data)
-        return cls.seen_entries[data[0]]
+        return "<%(class_name)s%(ident)s at %(hex_id)s>" % \
+               {'class_name': type(self).__name__,
+                'hex_id': hex(id(self)),
+                'ident': self._identifying_data()}
 
     @classmethod
     @contextmanager
@@ -75,8 +47,15 @@ class SQLiteRecord(object):
     @classmethod
     def init_table(cls, db=None):
         with cls._conn_db(db) as conn:
-            conn.execute(
-                """CREATE TABLE IF NOT EXISTS log(
+            conn.execute(cls.sql_schema)
+
+    def insert(self, db=None):
+        with self._conn_db(db) as conn:
+            conn.execute(self.sql_insert, self.as_row)
+
+
+def _SQLiteRecord_fields():
+    sql_schema = """CREATE TABLE IF NOT EXISTS log(
                         Created float PRIMARY KEY,
                         Name text,
                         HostName text,
@@ -92,7 +71,81 @@ class SQLiteRecord(object):
                         Process int,
                         Thread text,
                         ThreadName text
-                   )""")
+                   )"""
+    sql_insert = """INSERT INTO log( Created, Name, HostName, Port,
+                                    LogLevel, LogLevelName, Message, Args,
+                                    Module, FuncName, LineNo, Exception,
+                                    Process, Thread, ThreadName )
+                   VALUES (         ?, ?, ?, ?,
+                                    ?, ?, ?, ?,
+                                    ?, ?, ?, ?,
+                                    ?, ?, ? ); """
+    _flds = OrderedDict({'created': identity,
+                         'name': identity,
+                         'host_name': identity,
+                         'port': identity,
+                         'log_level': identity,
+                         'log_level_name': identity,
+                         'message': identity,
+                         'args': repr,
+                         'module': identity,
+                         'func_name': identity,
+                         'line_no': identity,
+                         'exception': identity,
+                         'process': identity,
+                         'thread': identity,
+                         'threadName': identity})
+    return sql_schema, sql_insert, _flds
+
+
+class SQLiteRecord(SQLBase):
+    sql_schema, sql_insert, _flds = _SQLiteRecord_fields()
+    seen_entries = OrderedDict()
+
+    def _identifying_data(self):
+        return " for %(path)s at " \
+               "%(created)r =: " \
+               "%(response)r" % \
+               {'path': self.args['request']['path'].split('?')[0],
+                'created': self.created,
+                'response': self.args['response']['data']}
+
+    def __init__(self, created, name, host_name, port, log_level,
+                 log_level_name, message, args, module, func_name, line_no,
+                 exception, process, thread, threadName):
+        super(SQLiteRecord, self).__init__(
+            created=created,
+            name=name,
+            host_name=host_name,
+            port=port,
+            log_level=log_level,
+            log_level_name=log_level_name,
+            message=message,
+            args=args,
+            module=module,
+            func_name=func_name,
+            line_no=line_no,
+            exception=exception,
+            process=process,
+            thread=thread,
+            threadName=threadName)
+        if isinstance(self.args, basestring):
+            self.args = eval(self.args)
+
+    # noinspection PyPropertyDefinition
+    @classmethod
+    def last_seen(cls, recheck=False, db=None):
+        if recheck:
+            for _ in cls.get_unseen(db):
+                pass
+        key = next(reversed(cls.seen_entries))
+        return cls.seen_entries[key]
+
+    @classmethod
+    def _see(cls, data):
+        if data[0] not in cls.seen_entries:
+            cls.seen_entries[data[0]] = SQLiteRecord(*data)
+        return cls.seen_entries[data[0]]
 
     @classmethod
     def get_entry(cls, created, db=None):
@@ -119,33 +172,75 @@ class SQLiteRecord(object):
                                     (created,)):
                 yield cls._see(row)
 
-    @property
-    def as_row(self):
-        return (self.created,
-                self.name,
-                self.host_name,
-                self.port,
-                self.log_level,
-                self.log_level_name,
-                self.message,
-                repr(self.args),
-                self.module,
-                self.func_name,
-                self.line_no,
-                self.exception,
-                self.process,
-                self.thread,
-                self.threadName)
 
-    def insert(self, db=None):
-        with self._conn_db(db) as conn:
-            conn.execute(
-                """INSERT INTO log( Created, Name, HostName, Port,
-                                    LogLevel, LogLevelName, Message, Args,
-                                    Module, FuncName, LineNo, Exception,
-                                    Process, Thread, ThreadName )
-                   VALUES (         ?, ?, ?, ?,
-                                    ?, ?, ?, ?,
-                                    ?, ?, ?, ?,
-                                    ?, ?, ? ); """,
-                self.as_row)
+class Event(SQLBase):
+    sql_schema = ("CREATE TABLE IF NOT EXISTS events(Start float PRIMARY KEY,"
+                  "Name text UNIQUE End float)")
+    sql_insert = "INSERT INTO events(Start, Name, End) VALUES ( ?, ?, ? );"
+    _flds = OrderedDict({'start': identity,
+                         'name': identity,
+                         'end': identity})
+    __names = OrderedDict()
+
+    @classmethod
+    def _see(cls, data):
+        start, name, _ = data
+        if name not in cls.__names:
+            cls.__names[name] = start
+        return cls(*data)
+
+    def update_end_from_db(self):
+        new_self = self.get_entry(start=self.start)
+        self.end = new_self.end
+
+    def update_db(self, db=None):
+        if self.name in self._names:
+            with cls._conn_db(db) as conn:
+                curs = conn.cursor()
+                curs.execute("UPDATE entry SET End=? WHERE Start=?",
+                             (self.end, self.start))
+        else:
+            self.insert(db)
+
+
+    @classmethod
+    def get_entry(cls, start=None, name=None, db=None):
+        if start is None:
+            assert name is not None, "get_entry needs a start time or a name"
+            start = self._names[name]
+        with cls._conn_db(db) as conn:
+            curs = conn.cursor()
+            return cls._see(curs.fetchone("SELECT * FROM events WHERE Start=?",
+                                          (start,)))
+
+    @classmethod
+    def get_all(cls, db=None):
+        with cls._conn_db(db) as conn:
+            curs = conn.cursor()
+            return tuple(cls._see(event) for event in
+                         curs.execute("SELECT * FROM events"))
+
+    @property
+    def _names(self):
+        self.__names.clear()
+        with cls._conn_db(db) as conn:
+            curs = conn.cursor()
+            for name, start in curs.execute("SELECT Name, Start from events"):
+                self.__names[name] = start
+        return self.__names
+
+    def __init__(self, start, name, end=None):
+        super(SQLiteRecord, self).__init__(start=start, name=name, end=end)
+
+    def get_events(self):
+        sql = "SELECT * FROM log WHERE Created>=?"
+        times = [self.start]
+        if self.end is not None:
+            times.append(self.end)
+            sql += " AND Created<=?"
+        times = tuple(times)
+        self.events = events = []
+        with q.sqlite_connection() as conn:
+            data = conn.cursor().execute(sql, times)
+            for event in data:
+                events.append(SQLiteRecord(*event))
