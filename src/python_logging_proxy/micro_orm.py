@@ -81,21 +81,21 @@ def _SQLiteRecord_fields():
                                     ?, ?, ?, ?,
                                     ?, ?, ?, ?,
                                     ?, ?, ? ); """
-    _flds = OrderedDict({'created': identity,
-                         'name': identity,
-                         'host_name': identity,
-                         'port': identity,
-                         'log_level': identity,
-                         'log_level_name': identity,
-                         'message': identity,
-                         'args': repr,
-                         'module': identity,
-                         'func_name': identity,
-                         'line_no': identity,
-                         'exception': identity,
-                         'process': identity,
-                         'thread': identity,
-                         'threadName': identity})
+    _flds = OrderedDict([('created', identity),
+                         ('name', identity),
+                         ('host_name', identity),
+                         ('port', identity),
+                         ('log_level', identity),
+                         ('log_level_name', identity),
+                         ('message', identity),
+                         ('args', repr),
+                         ('module', identity),
+                         ('func_name', identity),
+                         ('line_no', identity),
+                         ('exception', identity),
+                         ('process', identity),
+                         ('thread', identity),
+                         ('threadName', identity)])
     return sql_schema, sql_insert, _flds
 
 
@@ -104,9 +104,7 @@ class SQLiteRecord(SQLBase):
     seen_entries = OrderedDict()
 
     def _identifying_data(self):
-        return " for %(path)s at " \
-               "%(created)r =: " \
-               "%(response)r" % \
+        return " for %(path)s at %(created)r =: %(response)r" % \
                {'path': self.args['request']['path'].split('?')[0],
                 'created': self.created,
                 'response': self.args['response']['data']}
@@ -114,22 +112,21 @@ class SQLiteRecord(SQLBase):
     def __init__(self, created, name, host_name, port, log_level,
                  log_level_name, message, args, module, func_name, line_no,
                  exception, process, thread, threadName):
-        super(SQLiteRecord, self).__init__(
-            created=created,
-            name=name,
-            host_name=host_name,
-            port=port,
-            log_level=log_level,
-            log_level_name=log_level_name,
-            message=message,
-            args=args,
-            module=module,
-            func_name=func_name,
-            line_no=line_no,
-            exception=exception,
-            process=process,
-            thread=thread,
-            threadName=threadName)
+        super(SQLiteRecord, self).__init__(created=created,
+                                           name=name,
+                                           host_name=host_name,
+                                           port=port,
+                                           log_level=log_level,
+                                           log_level_name=log_level_name,
+                                           message=message,
+                                           args=args,
+                                           module=module,
+                                           func_name=func_name,
+                                           line_no=line_no,
+                                           exception=exception,
+                                           process=process,
+                                           thread=thread,
+                                           threadName=threadName)
         if isinstance(self.args, basestring):
             self.args = eval(self.args)
 
@@ -188,9 +185,9 @@ class HttpSession(SQLBase):
     sql_schema = ("CREATE TABLE IF NOT EXISTS events(Start float PRIMARY KEY,"
                   "Name text UNIQUE, End float)")
     sql_insert = "INSERT INTO events(Start, Name, End) VALUES ( ?, ?, ? );"
-    _flds = OrderedDict({'start': identity,
-                         'name': identity,
-                         'end': identity})
+    _flds = OrderedDict([('start', identity),
+                         ('name', identity),
+                         ('end', identity)])
     __names = OrderedDict()
     start = None
     end = None
@@ -246,12 +243,27 @@ class HttpSession(SQLBase):
     @property
     def summary(self):
         assets = [event.summary for event in self.events]
-        return {'name': self.name,
-                'wall_time': self.end - self.start,
-                'asset_num': len(assets),
-                'assets': assets,
-                'cummulative_time': sum([a['time_taken'] for a in assets]),
-                'cummulative_size': sum([a['size'] for a in assets])}
+        ret = {'name': self.name,
+               'start_time': self.start,
+               'asset_num': len(assets),
+               'assets': assets,
+               'cummulative_time': sum([a['time_taken'] for a in assets]),
+               'cummulative_size': sum([a['size'] for a in assets])}
+        if self.end is not None:
+            ret['status'] = 'Complete'
+            ret['wall_time'] = self.end - self.start
+            ret['end_time'] = self.end
+        else:
+            ret['status'] = 'Incomplete'
+            from time import time
+            if self.events:
+                end = max(event.args['response']['time']
+                          for event in self.events)
+            else:
+                from time import time
+                end = time()
+            ret['wall_time'] = end - self.start
+        return ret
 
     def __init__(self, start, name, end=None):
         super(HttpSession, self).__init__(start=start, name=name, end=end)
@@ -262,7 +274,7 @@ class HttpSession(SQLBase):
             return self.get_events()
         return self._events
 
-    def get_events(self):
+    def get_events(self, db=None):
         sql = "SELECT * FROM log WHERE Created>=?"
         times = [self.start]
         if self.end is not None:
@@ -270,7 +282,7 @@ class HttpSession(SQLBase):
             sql += " AND Created<=?"
         times = tuple(times)
         events = []
-        with q.sqlite_connection() as conn:
+        with self._conn_db(db) as conn:
             data = conn.cursor().execute(sql, times)
             for event in data:
                 events.append(SQLiteRecord(*event))
