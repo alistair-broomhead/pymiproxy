@@ -6,8 +6,8 @@ from time import time
 
 from miproxy.proxy import ProxyHandler
 from python_logging_proxy.handlers import (SQLiteHandler,
-                                           StdOutHandler,
-                                           SQLITE_FILENAME)
+                                           StdOutHandler)
+from python_logging_proxy.micro_orm import SQLBase
 
 
 class LoggingProxyHandler(ProxyHandler):
@@ -86,7 +86,7 @@ class LoggingProxyHandler(ProxyHandler):
         self.logger.info("REQUEST: %(request)s\nRESPONSE: %(response)s",
                          transferred)
 
-LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLITE_FILENAME))
+LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLBase.db))
 
 
 def main(ca_file=None):

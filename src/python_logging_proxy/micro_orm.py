@@ -4,16 +4,14 @@ from collections import OrderedDict
 from contextlib import contextmanager
 from abc import ABCMeta, abstractproperty, abstractmethod
 
-SQLITE_FILENAME = path.join(path.expanduser('~'),
-                            '.python-logging-proxy.sqlite')
-
 __author__ = 'Alistair Broomhead'
 
 identity = lambda x: x
 
 
 class SQLBase(object):
-    db = SQLITE_FILENAME
+    db = path.join(path.expanduser('~'),
+                   'python-logging-proxy.sqlite')
     sql_schema = abstractproperty(lambda _: '')
     sql_insert = abstractproperty(lambda _: '')
     _flds = abstractproperty(lambda _: {})
