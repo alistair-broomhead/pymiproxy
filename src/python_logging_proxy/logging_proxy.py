@@ -86,7 +86,7 @@ class LoggingProxyHandler(ProxyHandler):
         self.logger.info("REQUEST: %(request)s\nRESPONSE: %(response)s",
                          transferred)
 
-LoggingProxyHandler.logger.addHandler(SQLiteHandler(db=SQLBase.db))
+LoggingProxyHandler.logger.addHandler(SQLiteHandler())
 
 
 def main(ca_file=None):
