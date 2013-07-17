@@ -1,8 +1,11 @@
 import sqlite3
 from os import path
-from collections import OrderedDict
+from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 from abc import ABCMeta, abstractproperty, abstractmethod
+import threading
+
+LOCKS = defaultdict(threading.Lock)
 
 __author__ = 'Alistair Broomhead'
 
@@ -37,11 +40,19 @@ class SQLBase(object):
                 'hex_id': hex(id(self)),
                 'ident': self._identifying_data()}
 
+    @contextmanager
+    def _db_lock(self, db):
+        LOCKS[db].acquire()
+        yield
+        LOCKS[db].release()
+
     @classmethod
     @contextmanager
     def _conn_db(cls, db=None):
-        with sqlite3.connect(db if db is not None else cls.db) as conn:
-            yield conn
+        db = db if db is not None else cls.db
+        with cls._db_lock(db):
+            with sqlite3.connect(db) as conn:
+                yield conn
 
     @classmethod
     def init_table(cls, db=None):
