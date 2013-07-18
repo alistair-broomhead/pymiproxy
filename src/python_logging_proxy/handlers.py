@@ -7,7 +7,7 @@ parameters to sql parameters
 StdOutHandler just prints log messages to stdout
 """
 import logging
-from python_logging_proxy.micro_orm import SQLiteRecord, SQLITE_FILENAME
+from python_logging_proxy.micro_orm import SQLiteRecord, SQLBase, HttpSession
 
 
 class SQLiteHandler(logging.Handler):
@@ -25,12 +25,13 @@ class SQLiteHandler(logging.Handler):
     because SQLite doesn't allow access to objects across threads.
     """
 
-    def __init__(self, db=SQLITE_FILENAME):
+    def __init__(self, db=SQLBase.db):
 
         logging.Handler.__init__(self)
         self.db = db
         # Create table if needed:
         SQLiteRecord.init_table(db)
+        HttpSession.init_table(db)
 
     def emit(self, record):
         # Use default formatting:
