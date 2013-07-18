@@ -47,31 +47,21 @@ class SQLBase(object):
         yield
         LOCKS[db].release()
 
-    @staticmethod
-    @contextmanager
-    def _transaction(conn):
-        while True:
-            try:
-                conn.execute("BEGIN TRANSACTION")
-                break
-            except conn.OperationalError, ex:
-                if "database is locked" not in ex.message:
-                    raise
-        try:
-            yield
-        except BaseException:
-            conn.execute("ROLLBACK")
-        else:
-            conn.execute("COMMIT")
-
     @classmethod
     @contextmanager
     def _conn_db(cls, db=None):
         db = db if db is not None else cls.db
         with cls._db_lock(db):
             with sqlite3.connect(db) as conn:
-                with cls._transaction(conn):
-                    yield conn
+                while True:
+                    try:
+                        curs = conn.cursor()
+                        curs.executescript("BEGIN TRANSACTION; ROLLBACK;")
+                        break
+                    except conn.OperationalError, ex:
+                        if "database is locked" not in ex.message:
+                            raise
+                yield conn
 
     @classmethod
     def init_table(cls, db=None):
