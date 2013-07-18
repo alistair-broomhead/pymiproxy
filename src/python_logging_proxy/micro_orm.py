@@ -40,24 +40,38 @@ class SQLBase(object):
                 'hex_id': hex(id(self)),
                 'ident': self._identifying_data()}
 
+    @staticmethod
+    @contextmanager
+    def _db_lock(db):
+        LOCKS[db].acquire()
+        yield
+        LOCKS[db].release()
+
+    @staticmethod
+    @contextmanager
+    def _transaction(conn):
+        while True:
+            try:
+                conn.execute("BEGIN TRANSACTION")
+                break
+            except conn.OperationalError, ex:
+                if "database is locked" not in ex.message:
+                    raise
+        try:
+            yield
+        except BaseException:
+            conn.execute("ROLLBACK")
+        else:
+            conn.execute("COMMIT")
+
     @classmethod
     @contextmanager
     def _conn_db(cls, db=None):
-        from sqlite3 import OperationalError
         db = db if db is not None else cls.db
-        try:
-            LOCKS[db].acquire()
-            while True:
-                try:
-                    with sqlite3.connect(db) as conn:
-                        yield conn
-                    break
-                except OperationalError, ex:
-                    if "database is locked" not in ex.message:
-                        raise
-        finally:
-            LOCKS[db].release()
-
+        with cls._db_lock(db):
+            with sqlite3.connect(db) as conn:
+                with cls._transaction(conn):
+                    yield conn
 
     @classmethod
     def init_table(cls, db=None):
