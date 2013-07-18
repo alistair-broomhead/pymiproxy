@@ -5,7 +5,7 @@ from contextlib import contextmanager
 from abc import ABCMeta, abstractproperty, abstractmethod
 import threading
 
-LOCKS = defaultdict(threading.Lock)
+LOCKS = {}
 
 __author__ = 'Alistair Broomhead'
 
@@ -40,28 +40,37 @@ class SQLBase(object):
                 'hex_id': hex(id(self)),
                 'ident': self._identifying_data()}
 
-    @staticmethod
-    @contextmanager
-    def _db_lock(db):
-        LOCKS[db].acquire()
-        yield
-        LOCKS[db].release()
-
     @classmethod
     @contextmanager
     def _conn_db(cls, db=None):
         db = db if db is not None else cls.db
-        with cls._db_lock(db):
-            with sqlite3.connect(db) as conn:
+        first_time = db not in LOCKS
+        if first_time:
+            lock = LOCKS[db] = threading.Lock()
+        else:
+            lock = LOCKS[db]
+        lock.acquire()
+        with sqlite3.connect(db) as conn:
+            try:
                 while True:
                     try:
-                        curs = conn.cursor()
-                        curs.executescript("BEGIN TRANSACTION; ROLLBACK;")
+                        if first_time:
+                            conn.cursor().execute(
+                                "CREATE TABLE IF NOT EXISTS lock ("
+                                "locked INTEGER NOT NULL, "
+                                "CHECK (locked IN (1)));")
+                            conn.cursor().execute(
+                                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                                "unique_lock ON lock (locked);")
+                        conn.cursor().execute("INSERT INTO lock VALUES (1)")
                         break
                     except conn.OperationalError, ex:
                         if "database is locked" not in ex.message:
                             raise
                 yield conn
+            finally:
+                conn.cursor().execute("DELETE FROM lock")
+                lock.release()
 
     @classmethod
     def init_table(cls, db=None):
