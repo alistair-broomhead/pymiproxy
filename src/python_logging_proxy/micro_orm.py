@@ -3,7 +3,6 @@ from os import path
 from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 from abc import ABCMeta, abstractproperty, abstractmethod
-import threading
 
 LOCKS = {}
 
@@ -46,10 +45,7 @@ class SQLBase(object):
         db = db if db is not None else cls.db
         first_time = db not in LOCKS
         if first_time:
-            lock = LOCKS[db] = threading.Lock()
-        else:
-            lock = LOCKS[db]
-        lock.acquire()
+            LOCKS[db] = True
         with sqlite3.connect(db) as conn:
             try:
                 while True:
@@ -65,12 +61,10 @@ class SQLBase(object):
                         conn.cursor().execute("INSERT INTO lock VALUES (1)")
                         break
                     except conn.OperationalError, ex:
-                        if "database is locked" not in ex.message:
-                            raise
+                        pass
                 yield conn
             finally:
                 conn.cursor().execute("DELETE FROM lock")
-                lock.release()
 
     @classmethod
     def init_table(cls, db=None):
