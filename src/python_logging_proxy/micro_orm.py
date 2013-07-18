@@ -40,6 +40,7 @@ class SQLBase(object):
                 'hex_id': hex(id(self)),
                 'ident': self._identifying_data()}
 
+    @classmethod
     @contextmanager
     def _db_lock(self, db):
         LOCKS[db].acquire()
