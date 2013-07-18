@@ -42,18 +42,22 @@ class SQLBase(object):
 
     @classmethod
     @contextmanager
-    def _db_lock(self, db):
-        LOCKS[db].acquire()
-        yield
-        LOCKS[db].release()
-
-    @classmethod
-    @contextmanager
     def _conn_db(cls, db=None):
+        from sqlite3 import OperationalError
         db = db if db is not None else cls.db
-        with cls._db_lock(db):
-            with sqlite3.connect(db) as conn:
-                yield conn
+        try:
+            LOCKS[db].acquire()
+            while True:
+                try:
+                    with sqlite3.connect(db) as conn:
+                        yield conn
+                    break
+                except OperationalError, ex:
+                    if "database is locked" not in ex.message:
+                        raise
+        finally:
+            LOCKS[db].release()
+
 
     @classmethod
     def init_table(cls, db=None):
