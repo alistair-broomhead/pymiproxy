@@ -4,8 +4,6 @@ from collections import OrderedDict, defaultdict
 from contextlib import contextmanager
 from abc import ABCMeta, abstractproperty, abstractmethod
 
-LOCKS = {}
-
 __author__ = 'Alistair Broomhead'
 
 identity = lambda x: x
@@ -43,21 +41,17 @@ class SQLBase(object):
     @contextmanager
     def _conn_db(cls, db=None):
         db = db if db is not None else cls.db
-        first_time = db not in LOCKS
-        if first_time:
-            LOCKS[db] = True
         with sqlite3.connect(db) as conn:
             try:
                 while True:
                     try:
-                        if first_time:
-                            conn.cursor().execute(
-                                "CREATE TABLE IF NOT EXISTS lock ("
-                                "locked INTEGER NOT NULL, "
-                                "CHECK (locked IN (1)));")
-                            conn.cursor().execute(
-                                "CREATE UNIQUE INDEX IF NOT EXISTS "
-                                "unique_lock ON lock (locked);")
+                        conn.cursor().execute(
+                            "CREATE TABLE IF NOT EXISTS lock ("
+                            "locked INTEGER NOT NULL, "
+                            "CHECK (locked IN (1)));")
+                        conn.cursor().execute(
+                            "CREATE UNIQUE INDEX IF NOT EXISTS "
+                            "unique_lock ON lock (locked);")
                         conn.cursor().execute("INSERT INTO lock VALUES (1)")
                         break
                     except conn.OperationalError, ex:
